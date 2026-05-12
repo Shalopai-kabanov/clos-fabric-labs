@@ -1,0 +1,81 @@
+! device: Spine2 (vEOS-lab, EOS-4.33.1.1F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+no service interface inactive port-id allocation disabled
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname Spine2
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+interface Ethernet1
+   description TO_LEAF3_E0
+   no switchport
+   ip address 10.0.0.10/31
+   ip ospf network point-to-point
+!
+interface Ethernet2
+   description TO_LEAF4_E0
+   no switchport
+   ip address 10.0.0.12/31
+   ip ospf network point-to-point
+!
+interface Ethernet3
+   description TO_LEAF1_E1
+   no switchport
+   ip address 10.0.0.14/31
+   ip ospf network point-to-point
+!
+interface Ethernet4
+   no switchport
+   ip address 10.0.0.16/31
+   ip ospf network point-to-point
+!
+interface Ethernet5
+   description TO_SPINE1_E5
+   no switchport
+   ip address 10.0.0.1/31
+   ip ospf network point-to-point
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 2.2.2.2/32
+!
+interface Management1
+!
+ip routing
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 2.2.2.2
+   passive-interface Loopback0
+   network 2.2.2.2/32 area 0.0.0.0
+   network 10.0.0.0/31 area 0.0.0.0
+   network 10.0.0.10/31 area 0.0.0.0
+   network 10.0.0.12/31 area 0.0.0.0
+   network 10.0.0.14/31 area 0.0.0.0
+   network 10.0.0.16/31 area 0.0.0.0
+   max-lsa 12000
+!
+end
