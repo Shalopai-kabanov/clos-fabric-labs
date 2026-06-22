@@ -1,0 +1,179 @@
+Border-MSK#sh run
+! Command: show running-config
+! device: Border-MSK (vEOS-lab, EOS-4.33.1.1F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+no service interface inactive port-id allocation disabled
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname Border-MSK
+!
+spanning-tree mode mstp
+no spanning-tree vlan-id 4093-4094
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 20
+   name APP_MSK
+!
+vlan 4093
+   name PROD_PEER_TRANSIT
+!
+vlan 4094
+   name MLAG_PEER
+!
+vrf instance PROD
+!
+interface Port-Channel10
+   description MLAG_TO_APP-MSK_BOND0_STATIC
+   switchport access vlan 20
+   mlag 10
+   spanning-tree portfast
+!
+interface Port-Channel100
+   description MLAG_PEER_LINK_TO_LEAF-MSK
+   switchport trunk allowed vlan 20,4093-4094
+   switchport mode trunk
+!
+interface Ethernet1
+   description TO_R-WAN_G0_0_DCI
+   no switchport
+   vrf PROD
+   ip address 172.31.1.1/30
+!
+interface Ethernet2
+   description TO_SPINE-MSK_E2
+   no switchport
+   ip address 10.1.0.3/31
+!
+interface Ethernet3
+   description TO_APP-MSK_E1
+   channel-group 10 mode on
+!
+interface Ethernet4
+   description TO_CLIENT-MSK_E0_EXTERNAL_ACCESS
+   no switchport
+   vrf PROD
+   ip address 192.0.2.1/30
+!
+interface Ethernet5
+   description TO_LEAF-MSK_E3_MLAG_PEER
+   channel-group 100 mode active
+!
+interface Ethernet6
+   description TO_LEAF-MSK_E4_MLAG_PEER
+   channel-group 100 mode active
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Ethernet9
+!
+interface Ethernet10
+!
+interface Ethernet11
+!
+interface Ethernet12
+!
+interface Loopback0
+   description ROUTER_ID
+   ip address 13.13.13.13/32
+!
+interface Loopback1
+   description MLAG_ANYCAST_VTEP
+   ip address 100.100.1.12/32
+!
+interface Management1
+!
+interface Vlan20
+   description APP_MSK_ANYCAST_GATEWAY
+   vrf PROD
+   ip address virtual 10.10.20.1/24
+!
+interface Vlan4093
+   description PROD_PEER_TRANSIT_TO_LEAF_MSK
+   no autostate
+   vrf PROD
+   ip address 172.30.100.2/30
+!
+interface Vlan4094
+   description MLAG_CONTROL
+   no autostate
+   ip address 192.168.1.2/30
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vlan 20 vni 10020
+   vxlan vrf PROD vni 50100
+!
+ip virtual-router mac-address 00:1c:73:00:01:99
+!
+ip routing
+ip routing vrf PROD
+!
+ip prefix-list DCI_ALLOWED seq 10 permit 10.255.0.10/32
+ip prefix-list DCI_ALLOWED seq 20 permit 192.0.2.0/30
+ip prefix-list DCI_ALLOWED seq 30 permit 192.0.2.4/30
+!
+mlag configuration
+   domain-id MLAG_MSK
+   local-interface Vlan4094
+   peer-address 192.168.1.1
+   peer-link Port-Channel100
+!
+ip route vrf PROD 10.255.0.10/32 10.10.20.10
+!
+route-map DCI_ALLOWED permit 10
+   match ip address prefix-list DCI_ALLOWED
+!
+router bgp 65102
+   router-id 13.13.13.13
+   neighbor 10.1.0.2 remote-as 65000
+   neighbor 10.1.0.2 send-community extended
+   !
+   vlan 20
+      rd 13.13.13.13:10020
+      route-target both 10020:10020
+      redistribute learned
+      redistribute learned remote
+   !
+   address-family evpn
+      neighbor 10.1.0.2 activate
+   !
+   address-family ipv4
+      neighbor 10.1.0.2 activate
+      network 13.13.13.13/32
+      network 100.100.1.12/32
+   !
+   vrf PROD
+      rd 13.13.13.13:50100
+      route-target import evpn 50100:50100
+      route-target export evpn 50100:50100
+      neighbor 172.31.1.2 remote-as 65500
+      neighbor 172.31.1.2 send-community extended
+      redistribute connected
+      redistribute static route-map DCI_ALLOWED
+      !
+      address-family ipv4
+         neighbor 172.31.1.2 activate
+         neighbor 172.31.1.2 route-map DCI_ALLOWED in
+         neighbor 172.31.1.2 route-map DCI_ALLOWED out
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+end
