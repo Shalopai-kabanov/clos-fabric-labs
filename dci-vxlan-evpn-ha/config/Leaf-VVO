@@ -1,0 +1,156 @@
+Leaf-VVO#sh run
+! Command: show running-config
+! device: Leaf-VVO (vEOS-lab, EOS-4.33.1.1F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+no service interface inactive port-id allocation disabled
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname Leaf-VVO
+!
+spanning-tree mode mstp
+no spanning-tree vlan-id 4093-4094
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 20
+   name APP_VVO
+!
+vlan 4093
+   name PROD_PEER_TRANSIT
+!
+vlan 4094
+   name MLAG_PEER
+!
+vrf instance PROD
+!
+interface Port-Channel10
+   description MLAG_TO_APP-VVO_BOND0_STATIC
+   switchport access vlan 20
+   mlag 10
+   spanning-tree portfast
+!
+interface Port-Channel100
+   description MLAG_PEER_LINK_TO_BORDER-VVO
+   switchport trunk allowed vlan 20,4093-4094
+   switchport mode trunk
+!
+interface Ethernet1
+   description TO_SPINE-VVO_E2
+   no switchport
+   ip address 10.2.0.3/31
+!
+interface Ethernet2
+   description TO_APP-VVO_E0
+   channel-group 10 mode on
+!
+interface Ethernet3
+   description TO_BORDER-VVO_E5_MLAG_PEER
+   channel-group 100 mode active
+!
+interface Ethernet4
+   description TO_BORDER-VVO_E6_MLAG_PEER
+   channel-group 100 mode active
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Ethernet9
+!
+interface Ethernet10
+!
+interface Ethernet11
+!
+interface Ethernet12
+!
+interface Loopback0
+   description ROUTER_ID
+   ip address 22.22.22.22/32
+!
+interface Loopback1
+   description MLAG_ANYCAST_VTEP
+   ip address 100.100.2.12/32
+!
+interface Management1
+!
+interface Vlan20
+   description APP_VVO_ANYCAST_GATEWAY
+   vrf PROD
+   ip address virtual 10.20.20.1/24
+!
+interface Vlan4093
+   description PROD_PEER_TRANSIT_TO_BORDER_VVO
+   no autostate
+   vrf PROD
+   ip address 172.30.200.1/30
+!
+interface Vlan4094
+   description MLAG_CONTROL
+   no autostate
+   ip address 192.168.2.1/30
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vlan 20 vni 20020
+   vxlan vrf PROD vni 50100
+!
+ip virtual-router mac-address 00:1c:73:00:02:99
+!
+ip routing
+ip routing vrf PROD
+!
+mlag configuration
+   domain-id MLAG_VVO
+   local-interface Vlan4094
+   peer-address 192.168.2.2
+   peer-link Port-Channel100
+!
+ip route vrf PROD 0.0.0.0/0 172.30.200.2
+!
+router bgp 65201
+   router-id 22.22.22.22
+   neighbor 10.2.0.2 remote-as 65010
+   neighbor 10.2.0.2 send-community extended
+   !
+   vlan 20
+      rd 22.22.22.22:20020
+      route-target both 20020:20020
+      redistribute learned
+      redistribute learned remote
+   !
+   address-family evpn
+      neighbor 10.2.0.2 activate
+   !
+   address-family ipv4
+      neighbor 10.2.0.2 activate
+      network 22.22.22.22/32
+      network 100.100.2.12/32
+   !
+   vrf PROD
+      rd 22.22.22.22:50100
+      route-target import evpn 50100:50100
+      route-target export evpn 50100:50100
+      redistribute connected
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+end
